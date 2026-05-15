@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeBattle Sim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f0f0; }
+        .pixel-font { font-family: 'Press+Start+2P', cursive; font-size: 10px; }
+        .hp-bar { transition: width 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="w-full max-w-2xl bg-slate-800 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-700">
+        <div id="setup-screen" class="p-8 text-center">
+            <h1 class="pixel-font text-2xl mb-8 text-yellow-400">POKEMON BATTLE</h1>
+            <input type="text" id="poke-input" placeholder="Nombre o ID (ej: charizard)" 
+                   class="w-full p-3 rounded bg-slate-700 border border-slate-600 mb-4 text-center outline-none focus:border-yellow-500">
+            <button onclick="initGame()" class="bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 px-8 rounded-full transition-all">
+                ¡BUSCAR Y LUCHAR!
+            </button>
+        </div>
+
+        <div id="battle-screen" class="hidden">
+            <div class="relative h-64 bg-gradient-to-b from-blue-400 to-green-400 p-4 flex justify-between items-center overflow-hidden">
+                <div class="absolute top-10 left-10 w-16 h-4 bg-white rounded-full opacity-50"></div>
+                
+                <div class="flex flex-col items-center">
+                    <div class="bg-white/80 p-2 rounded text-slate-900 mb-2 min-w-[120px]">
+                        <p id="enemy-name" class="font-bold uppercase text-xs"></p>
+                        <div class="w-full bg-gray-300 h-2 rounded-full mt-1">
+                            <div id="enemy-hp-bar" class="hp-bar bg-green-500 h-2 rounded-full w-full"></div>
+                        </div>
+                    </div>
+                    <img id="enemy-sprite" src="" class="w-32 h-32 object-contain animate-bounce" alt="Enemigo">
+                </div>
+
+                <div class="flex flex-col items-center mt-20">
+                    <img id="player-sprite" src="" class="w-32 h-32 object-contain" alt="Jugador">
+                    <div class="bg-white/80 p-2 rounded text-slate-900 mt-2 min-w-[120px]">
+                        <p id="player-name" class="font-bold uppercase text-xs"></p>
+                        <div class="w-full bg-gray-300 h-2 rounded-full mt-1">
+                            <div id="player-hp-bar" class="hp-bar bg-green-500 h-2 rounded-full w-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 h-40">
+                <div id="log" class="p-4 bg-slate-900 border-r border-slate-700 overflow-y-auto text-sm font-mono text-green-400">
+                    Esperando órdenes...
+                </div>
+                <div id="actions" class="p-4 bg-slate-800 grid grid-cols-1 gap-2">
+                    <button onclick="playerAttack()" class="bg-red-500 hover:bg-red-600 rounded font-bold uppercase py-2">Atacar</button>
+                    <button onclick="location.reload()" class="bg-slate-600 hover:bg-slate-700 rounded font-bold uppercase py-2">Huir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let player, enemy;
+        let isBattleOver = false;
+
+        async function getPokemon(nameOrId) {
+            try {
+                const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${nameOrId.toLowerCase()}`);
+                if (!response.ok) throw new Error("Pokemon no encontrado");
+                const data = await response.json();
+                return {
+                    name: data.name,
+                    hp: data.stats[0].base_stat,
+                    maxHp: data.stats[0].base_stat,
+                    attack: data.stats[1].base_stat,
+                    sprite: data.sprites.front_default,
+                    backSprite: data.sprites.back_default
+                };
+            } catch (error) {
+                alert(error.message);
+                return null;
+            }
+        }
+
+        async function initGame() {
+            const input = document.getElementById('poke-input').value || 'pikachu';
+            player = await getPokemon(input);
+            if (!player) return;
+
+            // Enemigo aleatorio (1-151)
+            const randomId = Math.floor(Math.random() * 151) + 1;
+            enemy = await getPokemon(randomId.toString());
+
+            // UI Update
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('battle-screen').classList.remove('hidden');
+            
+            updateUI();
+            log(`¡Un ${enemy.name.toUpperCase()} salvaje apareció!`);
+        }
+
+        function updateUI() {
+            document.getElementById('player-name').innerText = `${player.name} (${player.hp}/${player.maxHp})`;
+            document.getElementById('enemy-name').innerText = `${enemy.name} (${enemy.hp}/${enemy.maxHp})`;
+            
+            document.getElementById('player-sprite').src = player.backSprite || player.sprite;
+            document.getElementById('enemy-sprite').src = enemy.sprite;
+
+            const playerHpPercent = (player.hp / player.maxHp) * 100;
+            const enemyHpPercent = (enemy.hp / enemy.maxHp) * 100;
+
+            document.getElementById('player-hp-bar').style.width = playerHpPercent + '%';
+            document.getElementById('enemy-hp-bar').style.width = enemyHpPercent + '%';
+            
+            // Color de barra según salud
+            updateBarColor('player-hp-bar', playerHpPercent);
+            updateBarColor('enemy-hp-bar', enemyHpPercent);
+        }
+
+        function updateBarColor(id, percent) {
+            const bar = document.getElementById(id);
+            if(percent < 20) bar.className = 'hp-bar bg-red-500 h-2 rounded-full';
+            else if(percent < 50) bar.className = 'hp-bar bg-yellow-500 h-2 rounded-full';
+            else bar.className = 'hp-bar bg-green-500 h-2 rounded-full';
+        }
+
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `> ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function playerAttack() {
+            if (isBattleOver) return;
+
+            // Daño basado en stats con un poco de aleatoriedad
+            let damage = Math.floor((player.attack / 5) + (Math.random() * 5));
+            enemy.hp = Math.max(0, enemy.hp - damage);
+            
+            log(`¡Tu ${player.name} usó ataque! Hizo ${damage} de daño.`);
+            updateUI();
+
+            if (enemy.hp <= 0) {
+                log(`¡El ${enemy.name} enemigo se ha debilitado! ¡GANASTE!`);
+                isBattleOver = true;
+                return;
+            }
+
+            // Turno del enemigo tras 1 segundo
+            setTimeout(enemyAttack, 1000);
+        }
+
+        function enemyAttack() {
+            if (isBattleOver) return;
+
+            let damage = Math.floor((enemy.attack / 5) + (Math.random() * 5));
+            player.hp = Math.max(0, player.hp - damage);
+            
+            log(`¡El ${enemy.name} salvaje contraataca! Hizo ${damage} de daño.`);
+            updateUI();
+
+            if (player.hp <= 0) {
+                log(`¡Tu ${player.name} se ha debilitado! Has perdido...`);
+                isBattleOver = true;
+            }
+        }
+    </script>
+</body>
+</html>

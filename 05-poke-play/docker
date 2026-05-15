@@ -1,0 +1,12 @@
+# en una terminal ejecutamos este comando para
+# Ecjecutar un contenedor de Ubuntu con puerto mapeado
+docker run -it -p 8080:80 --name my-server ubuntu
+
+# en otra terminal ejecutamos el siguiente comando
+# copiamos el index.html al contenedor
+docker cp index.html my-server:my-web/index.html
+docker cp my-config.sh my-server:my-web/my-config.sh
+
+# nos vamos a la terminal del contenedor
+# darle permisos de ejecución al script dentro del contenedor
+chmod +x my-web/my-config.sh
