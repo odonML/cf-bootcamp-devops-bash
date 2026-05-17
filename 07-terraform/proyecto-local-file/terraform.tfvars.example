@@ -1,0 +1,6 @@
+# Ejemplo de uso con archivo terraform.tfvars
+# Copiar este archivo a terraform.tfvars y actualizar los valores
+
+nombre_archivo   = "mi-archivo.txt"
+contenido_archivo = "Este es el contenido de mi archivo"
+output_path      = "./archivos"
